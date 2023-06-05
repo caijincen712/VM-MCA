@@ -1,5 +1,5 @@
-# Towards Diverse Paragraph Captioning for Untrimmed Videos
-This repository contains PyTorch implementation of our paper [Towards Diverse Paragraph Captioning for Untrimmed Videos](https://arxiv.org/pdf/2105.14477.pdf) (CVPR 2021).
+# Improving Video Memory with Multi-head Attention and Channel Attention for Video Description
+This repository contains PyTorch implementation of our paper [Improving Video Memory with Multi-head Attention and Channel Attention for Video Description].
 
 ## Requirements
 - Python 3.6
@@ -39,17 +39,6 @@ $ cd driver
 $ CUDA_VISIBLE_DEVICES=0 python transformer.py ../results/*/folder/model.json ../results/*/folder/path.json --eval_set tst --resume_file ../results/*/folder/model/epoch.*.th
 ```
 We also provide the pretrained models for the ActivityNet dataset [here](https://drive.google.com/file/d/1lROybafncTHOaleFw6h2ReHrI-ao98hx/view?usp=sharing) and Charades dataset [here](https://drive.google.com/file/d/1nrCRZsW4cRaLjNhCa9n0bXRpDe9hVJrx/view?usp=sharing), which are re-run and achieve similar results with the paper.
-
-## Reference
-If you find this repo helpful, please consider citing:
-```
-@inproceedings{song2021paragraph,
-  title={Towards Diverse Paragraph Captioning for Untrimmed Videos},
-  author={Song, Yuqing and Chen, Shizhe and Jin, Qin},
-  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
-  year={2021}
-}
-```
 
 
 
