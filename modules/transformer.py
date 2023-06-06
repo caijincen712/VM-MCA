@@ -8,6 +8,10 @@ import time
 import numpy as np
 from modules.transformer_encoder import Encoder
 from modules.transformer_decoder import Decoder
+from modules.memory_attention import BertSelfAttention
+from modules.ECA_memory_attenntion import ECABertSelfAttention
+from modules.SDConv import ConvBertSelfAttention
+from modules.common import *
 
 decay1 = [(i+1)*20**(-1) for i in range(20)]
 decay2 = [1-(i+1)*50**(-1) for i in range(50)]
@@ -27,6 +31,8 @@ class TransformerConfig(framework.configbase.ModuleConfig):
     self.keyframes = False
     self.rl = False
     self.document_freq = None
+    self.conv_kernel_size = 9
+    self.head_ratio = 2
 
     
 class Transformer(nn.Module):
@@ -43,6 +49,9 @@ class Transformer(nn.Module):
     self.q_linear = nn.Linear(self.config.d_model, self.config.d_model, bias=False)
     self.next_attn = nn.Linear(2*self.config.d_model, 1)
     self.init_weights()
+    self.memory_update_attention0 = BertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
+    self.memory_update_attention1 = ECABertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
+    self.memory_update_attention2 = ConvBertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
 
   def init_weights(self,):
     for p in self.parameters():
@@ -58,13 +67,21 @@ class Transformer(nn.Module):
       word, attn = self.decoder(trg[:,i-1].unsqueeze(1), memory_bank, src_mask, trg_mask[:,i-1,:i].unsqueeze(1), step=i)
       d_output.append(word[:,-1])
       attn_weights.append(attn[:,:,-1].mean(dim=1))
-      memory_bank, add_state = self.update_memory(memory_bank, add_state, e_outputs, attn_weights[-20:], d_output[-20:])
+      memory_bank, add_state = self.update_memory(memory_bank, add_state, e_outputs, attn_weights[-20:], d_output[-20:],
+                                                 src_mask)
     output = self.logit(torch.cat([_.unsqueeze(1) for _ in d_output], 1))
     return output, org_key, select
 
-  def update_memory(self, memory_bank, add_state, e_outputs, attn, query_s):
+  def update_memory(self, memory_bank, add_state, e_outputs, attn, query_s, mask):
     remove_prob = torch.sigmoid(self.remove_gate(query_s[-1])).unsqueeze(-1)
     add_prob = torch.sigmoid(self.add_gate(query_s[-1])).unsqueeze(-1)
+    # Update judgment module
+    x1 = memory_bank + self.dropout(self.memory_update_attention2(memory_bank, e_outputs, e_outputs, mask)[0])
+    x2 = x1 + self.dropout(self.ff(self.norm(x1)))
+    x3 = x2 + self.dropout(self.memory_update_attention1(x2, x2, x2, mask)[0])
+    x4 = x3 + self.dropout(self.ff(self.norm(x3)))
+    new_add_prob = torch.sigmoid(x4)
+    new_add_prob = new_add_prob + add_prob
     temp = torch.softmax(torch.tensor(decay1[20-len(attn):]).cuda(), dim=-1)
     attn = sum([attn[i]*temp[i] for i in range(len(attn))]).unsqueeze(-1)
     # remove for diversity
@@ -74,8 +91,8 @@ class Transformer(nn.Module):
     # add for coherence
     last_ctx = (e_outputs * attn).sum(dim=1, keepdim=True)
     next_attn = torch.sigmoid(self.next_attn(torch.cat([e_outputs,last_ctx.expand_as(e_outputs)], dim=-1)))
-    memory_bank = memory_bank + e_outputs * (1-add_state) * (add_prob*next_attn)
-    add_state = add_state + (1-add_state) * (add_prob*next_attn)
+    memory_bank = memory_bank + e_outputs * (1-add_state) * (new_add_prob*next_attn)
+    add_state = add_state + (1-add_state) * (new_add_prob*next_attn)
     return memory_bank, add_state
 
   def sample(self, src, src_mask, decoding='greedy'):
@@ -105,7 +122,8 @@ class Transformer(nn.Module):
         next_word = torch.multinomial(probs, 1).cuda()
         seqLogprobs[:,i] = logprobs.gather(1, next_word).view(-1)
       outputs = torch.cat([outputs, next_word], dim=1)
-      memory_bank, add_state = self.update_memory(memory_bank, add_state, e_outputs, attn_weights[-20:], d_output[-20:])
+      memory_bank, add_state = self.update_memory(memory_bank, add_state, e_outputs, attn_weights[-20:], d_output[-20:],
+                                                 src_mask)
     attn_weights = torch.cat([_.unsqueeze(1) for _ in attn_weights], dim=1)
     return outputs, seqLogprobs, attn_weights
 
