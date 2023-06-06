@@ -12,6 +12,7 @@ This repository contains PyTorch implementation of our paper [Improving Video Me
 ### Data preparation
 1. Download the pre-extracted video features of ActivityNet Captions or Charades Captions datasets from [BaiduNetdisk](https://pan.baidu.com/s/1NdlziFgGgSM__hOQi5mNKQ) (code: he21).
 2. Decompress the downloaded files to the corresponding dataset folder in the ordered_feature/ directory.
+3. The link to the dataset here is from the public access in [Towards Diverse Paragraph Captioning for Untrimmed Videos] at [https://github.com/syuqings/video-paragraph].
 
 ### Start training
 1. Train our model without reinforcement learning, ```*``` can be activitynet or charades.
