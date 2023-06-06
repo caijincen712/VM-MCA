@@ -9,7 +9,7 @@ import numpy as np
 from modules.transformer_encoder import Encoder
 from modules.transformer_decoder import Decoder
 from modules.memory_attention import BertSelfAttention
-from modules.ECA_memory_attenntion import ECABertSelfAttention
+from modules.CHA_memory_attenntion import CHABertSelfAttention
 from modules.SDConv import ConvBertSelfAttention
 from modules.common import *
 
@@ -50,7 +50,7 @@ class Transformer(nn.Module):
     self.next_attn = nn.Linear(2*self.config.d_model, 1)
     self.init_weights()
     self.memory_update_attention0 = BertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
-    self.memory_update_attention1 = ECABertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
+    self.memory_update_attention1 = CHABertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
     self.memory_update_attention2 = ConvBertSelfAttention(self.config.d_model, self.config.heads, self.config.dropout)
 
   def init_weights(self,):
